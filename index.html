@@ -2215,7 +2215,7 @@ function init3D() {
   waterGeo.rotateX(-Math.PI / 2);
   waterGeo.translate(0, 0, (ZF + ZQ) / 2);
   const wpos = waterGeo.attributes.position, wcol = [], wedge = [];
-  const DEPTHC = [[0, '#bfece4'], [2.5, '#55d8d4'], [6, '#2cb8d6'], [12, '#1f8fcc'], [20, '#1767b3'], [30, '#0f4790'], [38, '#0b3577']];
+  const DEPTHC = [[0, '#bfece4'], [2.5, '#55d8d4'], [6, '#2cb8d6'], [12, '#2195cc'], [20, '#2088c0'], [30, '#1d7cb4'], [38, '#1b74ac']];
   const depthCol = d => { for (let k = 1; k < DEPTHC.length; k++) if (d <= DEPTHC[k][0]) { const [a, ca] = DEPTHC[k - 1], [b, cb] = DEPTHC[k]; return new THREE.Color(ca).lerp(new THREE.Color(cb), (d - a) / (b - a)); } return new THREE.Color(DEPTHC[DEPTHC.length - 1][1]); };
   for (let k = 0; k < wpos.count; k++) {
     const x = wpos.getX(k), z = wpos.getZ(k), c = depthCol(Math.max(0, -seabedRaw(x, z)));
@@ -2224,26 +2224,10 @@ function init3D() {
     wedge.push(clamp(Math.min(XH - Math.abs(x), ZF - z, z - ZQ) / 4, 0, 1));   // ondas somem na borda e a água encosta nas paredes
   }
   waterGeo.setAttribute('color', new THREE.Float32BufferAttribute(wcol, 3));
-  const waterMat = new THREE.MeshPhongMaterial({ vertexColors: true, transparent: true, opacity: 0.62, shininess: 90, specular: new THREE.Color('#9fc8e0'), depthWrite: false });
+  const waterMat = new THREE.MeshPhongMaterial({ vertexColors: true, transparent: true, opacity: 0.4, shininess: 90, specular: new THREE.Color('#9fc8e0'), depthWrite: false });
   const water = L1(new THREE.Mesh(waterGeo, waterMat));
   water.receiveShadow = true;
   scene.add(water);
-  const waveMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uNight: { value: 0 } },
-    vertexShader: 'varying vec2 vP; void main(){ vP = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform float uTime, uNight; varying vec2 vP;
-      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float n(vec2 p){ vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), u.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), u.x), u.y); }
-      void main(){
-        vec2 p = vP * 0.085;
-        float a = n(p + vec2(uTime * 0.21, uTime * 0.13)) + n(p * 2.1 - vec2(uTime * 0.16, -uTime * 0.23));
-        float crest = smoothstep(0.35, 1.0, 1.0 - abs(a - 1.0) * 2.2);
-        gl_FragColor = vec4(vec3(0.82, 0.96, 1.0) * mix(1.0, 0.3, uNight), crest * 0.2);
-      }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  });
-  const waveTop = L1(new THREE.Mesh(waterGeo, waveMat));
-  waveTop.renderOrder = 1; scene.add(waveTop);
   const glassGeoP = [];
   const quad = (a, b, c, d) => glassGeoP.push(...a, ...b, ...c, ...a, ...c, ...d);
   for (let x = -XH; x < XH; x += 2) { const h = seabed(x + 1, ZF - 1); if (h < 0) quad([x, h, ZF + 0.04], [x + 2, h, ZF + 0.04], [x + 2, 0, ZF + 0.04], [x, 0, ZF + 0.04]); }
@@ -2260,7 +2244,6 @@ function init3D() {
       void main(){
         float k = clamp(-vP.y / 36.0, 0.0, 1.0);
         vec3 c = mix(vec3(0.16, 0.62, 0.84), vec3(0.02, 0.09, 0.28), pow(k, 0.7));
-        if (vP.y > -0.6) c = vec3(0.85, 0.96, 1.0);
         c *= mix(1.0, 0.42, uNight);
         gl_FragColor = vec4(c, mix(0.46, 0.86, k));
       }`,
@@ -2342,8 +2325,9 @@ function init3D() {
   const MID_COL = ['#f2a03a', '#e05a4a', '#5aa0d8', '#f2d45a', '#8a6ad8', '#4ac0a0', '#e88aa0', '#c7d4de'];
   const MIDS = [];
   for (let n = 0; MIDS.length < 60 && n < 400; n++) { const x = ri(-62, 62), z = ri(-20, 76); if (floorAt(x, z) > -6) continue; MIDS.push({ x, z, y: Math.max(floorAt(x, z) + 2, -ri(3, 24)), ty: -8, a: ri(0, 6), ta: 0, sp: ri(1.2, 2.8), sz: ri(0.8, 1.5), t: ri(0, 4) }); }
-  const midB = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial(), MIDS.length);
-  const midT = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial(), MIDS.length);
+  const midGlow = { emissive: new THREE.Color('#ffffff'), emissiveIntensity: 0.14 };
+  const midB = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial(midGlow), MIDS.length);
+  const midT = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial(midGlow), MIDS.length);
   MIDS.forEach((f, k) => { const c = new THREE.Color(MID_COL[k % MID_COL.length]); midB.setColorAt(k, c); midT.setColorAt(k, c.clone().multiplyScalar(0.75)); f.ta = f.a; });
   midB.castShadow = true;
   scene.add(midB, midT);
@@ -2354,27 +2338,29 @@ function init3D() {
   JELLY.forEach((j, k) => { jellyB.setColorAt(k, new THREE.Color(j.c)); for (let q = 0; q < 4; q++) jellyT.setColorAt(k * 4 + q, new THREE.Color(j.c)); });
   scene.add(L1(jellyB), L1(jellyT));
   // bichos grandes do mar aberto
-  function critter(build) { const v = new VB(); build(v); const m = v.mesh(matV); return m; }
+  function critter(build, mat = matV) { const v = new VB(); build(v); const m = v.mesh(mat); return m; }
+  const seaGlow = (col, k) => new THREE.MeshLambertMaterial({ vertexColors: true, emissive: new THREE.Color(col), emissiveIntensity: k });
+  const whaleMat = seaGlow('#2f7fe0', 0.42), mantaMat = seaGlow('#5a5fc8', 0.34), sharkMat = seaGlow('#46586c', 0.4), turtleMat = seaGlow('#3f9a4a', 0.34);
   const whale = new THREE.Group();
   whale.add(critter(v => {
-    v.box(0, 0, 0, 12, 3.2, 3.6, '#3a4a66'); v.box(5.8, -0.2, 0, 2.4, 2.6, 3.0, '#3a4a66'); v.box(7.2, -0.4, 0, 1.2, 1.8, 2.2, '#34435c');
+    v.box(0, 0, 0, 12, 3.2, 3.6, '#3f6fb4'); v.box(5.8, -0.2, 0, 2.4, 2.6, 3.0, '#3f6fb4'); v.box(7.2, -0.4, 0, 1.2, 1.8, 2.2, '#37639f');
     v.box(1, -1.75, 0, 11, 0.5, 3.0, '#cfd6de'); for (let k = 0; k < 6; k++) v.box(3 + k * 0.9, -1.55, 0, 0.3, 0.3, 3.05, '#8f9aa8');
-    v.box(-6.6, 0.1, 0, 2.4, 2.2, 2.4, '#34435c'); v.box(2.5, -1.2, 2.4, 3.2, 0.3, 1.8, '#3a4a66', { r: [0, 0.4, -0.3] }); v.box(2.5, -1.2, -2.4, 3.2, 0.3, 1.8, '#3a4a66', { r: [0, -0.4, -0.3] });
-    v.box(-1, 1.8, 0, 1.2, 0.6, 0.4, '#34435c'); v.box(5.4, 0.3, 1.81, 0.4, 0.4, 0.06, '#0b0f1a'); v.box(5.4, 0.3, -1.81, 0.4, 0.4, 0.06, '#0b0f1a');
-  }));
-  const fluke = critter(v => { v.box(-1.2, 0, 0, 2.4, 0.5, 1.4, '#34435c'); v.box(-2.4, 0, 0, 1.4, 0.35, 5.6, '#2e3c54'); });
+    v.box(-6.6, 0.1, 0, 2.4, 2.2, 2.4, '#37639f'); v.box(2.5, -1.2, 2.4, 3.2, 0.3, 1.8, '#3f6fb4', { r: [0, 0.4, -0.3] }); v.box(2.5, -1.2, -2.4, 3.2, 0.3, 1.8, '#3f6fb4', { r: [0, -0.4, -0.3] });
+    v.box(-1, 1.8, 0, 1.2, 0.6, 0.4, '#37639f'); v.box(5.4, 0.3, 1.81, 0.4, 0.4, 0.06, '#0b0f1a'); v.box(5.4, 0.3, -1.81, 0.4, 0.4, 0.06, '#0b0f1a');
+  }, whaleMat));
+  const fluke = critter(v => { v.box(-1.2, 0, 0, 2.4, 0.5, 1.4, '#37639f'); v.box(-2.4, 0, 0, 1.4, 0.35, 5.6, '#325a92'); }, whaleMat);
   fluke.position.set(-7.6, 0.1, 0); whale.add(fluke);
   const manta = new THREE.Group();
-  manta.add(critter(v => { v.box(0, 0, 0, 3.4, 0.6, 2.2, '#2d3448'); v.box(0, -0.32, 0, 3.0, 0.1, 2.0, '#e6eaf0'); v.box(-3.2, 0, 0, 3.4, 0.2, 0.2, '#2d3448'); v.box(1.9, 0, 0.6, 0.9, 0.3, 0.3, '#2d3448'); v.box(1.9, 0, -0.6, 0.9, 0.3, 0.3, '#2d3448'); }));
-  const mwL = critter(v => { v.box(0, 0, 1.6, 2.4, 0.25, 3.2, '#2d3448'); v.box(-0.4, 0, 3.6, 1.2, 0.2, 1.2, '#2d3448'); });
-  const mwR = critter(v => { v.box(0, 0, -1.6, 2.4, 0.25, 3.2, '#2d3448'); v.box(-0.4, 0, -3.6, 1.2, 0.2, 1.2, '#2d3448'); });
+  manta.add(critter(v => { v.box(0, 0, 0, 3.4, 0.6, 2.2, '#2d3448'); v.box(0, -0.32, 0, 3.0, 0.1, 2.0, '#e6eaf0'); v.box(-3.2, 0, 0, 3.4, 0.2, 0.2, '#2d3448'); v.box(1.9, 0, 0.6, 0.9, 0.3, 0.3, '#2d3448'); v.box(1.9, 0, -0.6, 0.9, 0.3, 0.3, '#2d3448'); }, mantaMat));
+  const mwL = critter(v => { v.box(0, 0, 1.6, 2.4, 0.25, 3.2, '#2d3448'); v.box(-0.4, 0, 3.6, 1.2, 0.2, 1.2, '#2d3448'); }, mantaMat);
+  const mwR = critter(v => { v.box(0, 0, -1.6, 2.4, 0.25, 3.2, '#2d3448'); v.box(-0.4, 0, -3.6, 1.2, 0.2, 1.2, '#2d3448'); }, mantaMat);
   mwL.position.z = 1; mwR.position.z = -1; manta.add(mwL, mwR);
   const shark = critter(v => {
     v.box(0, 0, 0, 5, 1.1, 1.2, '#7d8a99'); v.box(0.3, -0.45, 0, 4.4, 0.25, 1.1, '#dfe4ea'); v.box(2.9, 0, 0, 0.8, 0.5, 3.0, '#7d8a99');
-    v.box(2.9, 0.05, 1.5, 0.3, 0.3, 0.06, '#0b0f1a'); v.box(2.9, 0.05, -1.5, 0.3, 0.3, 0.06, '#0b0f1a');
     v.box(0.2, 1.1, 0, 1.2, 1.2, 0.2, '#6d7a89', { r: [0, 0, -0.4] }); v.box(-3, 0.4, 0, 1.1, 2.0, 0.2, '#6d7a89', { r: [0, 0, 0.35] }); v.box(0.8, -0.5, 0.9, 1.2, 0.15, 0.8, '#7d8a99'); v.box(0.8, -0.5, -0.9, 1.2, 0.15, 0.8, '#7d8a99');
-  });
-  const turtle = critter(v => { v.box(0, 0, 0, 2.2, 0.8, 1.9, '#5a8a4a'); v.box(0, 0.35, 0, 1.6, 0.4, 1.4, '#7aa85a'); v.box(1.5, 0, 0, 0.8, 0.6, 0.7, '#a8b98a'); v.box(0.5, -0.2, 1.3, 1.0, 0.15, 0.9, '#a8b98a'); v.box(0.5, -0.2, -1.3, 1.0, 0.15, 0.9, '#a8b98a'); v.box(-1, -0.2, 0.9, 0.6, 0.15, 0.5, '#a8b98a'); v.box(-1, -0.2, -0.9, 0.6, 0.15, 0.5, '#a8b98a'); });
+  }, sharkMat);
+  for (const z of [1.52, -1.52]) { const eye = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.08), new THREE.MeshBasicMaterial({ color: '#ff2a1f' })); eye.position.set(2.9, 0.05, z); shark.add(eye); }
+  const turtle = critter(v => { v.box(0, 0, 0, 2.2, 0.8, 1.9, '#5a8a4a'); v.box(0, 0.35, 0, 1.6, 0.4, 1.4, '#7aa85a'); v.box(1.5, 0, 0, 0.8, 0.6, 0.7, '#a8b98a'); v.box(0.5, -0.2, 1.3, 1.0, 0.15, 0.9, '#a8b98a'); v.box(0.5, -0.2, -1.3, 1.0, 0.15, 0.9, '#a8b98a'); v.box(-1, -0.2, 0.9, 0.6, 0.15, 0.5, '#a8b98a'); v.box(-1, -0.2, -0.9, 0.6, 0.15, 0.5, '#a8b98a'); }, turtleMat);
   scene.add(whale, manta, shark, turtle);
   const chestGlow = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.6), new THREE.MeshBasicMaterial({ color: '#ffe28c' }));
   chestGlow.position.set(WRK.x + 4, floorAt(WRK.x, WRK.z) + 1.5, WRK.z + 3);
@@ -2709,7 +2695,7 @@ function init3D() {
   }
 
   /* ---------- câmera: arrastar gira, roda/pinça aproxima ---------- */
-  const cam = { az: -1.1, el: 1.25, dist: 760, taz: 0.55, tel: 0.62, tdist: 300, lag: 1.1, tgt: new THREE.Vector3(0, -22, 12), ttgt: new THREE.Vector3(0, -22, 12) };
+  const cam = { az: -0.5, el: 1.1, dist: 440, taz: -1.2, tel: 0.5, tdist: 120, lag: 1.1, tgt: new THREE.Vector3(8, -7, -2), ttgt: new THREE.Vector3(8, -7, -2) };
   const HOME = cam.ttgt.clone();
   if (reduce) { cam.az = cam.taz; cam.el = cam.tel; cam.dist = cam.tdist; }
   function updateCamera(dt) {
@@ -2799,7 +2785,7 @@ function init3D() {
     hemi.color.copy(bot).lerp(cA.set('#ffffff'), 0.4);
     glowMat.emissiveIntensity = 0.12 + night * 1.15;
     glassMat.uniforms.uNight.value = night * 0.8;
-    skyMat.uniforms.night.value = night; fallMat.uniforms.uNight.value = waveMat.uniforms.uNight.value = night;
+    skyMat.uniforms.night.value = night; fallMat.uniforms.uNight.value = night;
     beamMat.opacity = night * 0.16;
     lampLights.forEach(l => { l.intensity = night * 1.3; });
     lhLight.intensity = night * 1.4;
@@ -2813,7 +2799,7 @@ function init3D() {
     for (let k = 0; k < wpos.count; k++) wpos.setY(k, wave(wpos.getX(k), wpos.getZ(k), T3) * wedge[k]);
     wpos.needsUpdate = true;
     waterGeo.computeVertexNormals();
-    waveMat.uniforms.uTime.value = T3; fallMat.uniforms.uTime.value = T3;
+    fallMat.uniforms.uTime.value = T3;
     // algas
     { let q = 0; for (const k of KELP) { let x = k.x, z = k.z; for (let s = 0; s < k.n; s++) { const sw = Math.sin(T3 * 1.3 + k.ph + s * 0.45) * 0.14 * s; x += sw * 0.35; z += Math.cos(T3 * 1.1 + k.ph) * 0.03 * s; obj.position.set(x, k.y + 0.55 + s * 1.05, z); obj.rotation.set(0, 0, sw * 0.3); obj.scale.set(1, 1, 1); obj.updateMatrix(); kelp.setMatrixAt(q++, obj.matrix); } } kelp.instanceMatrix.needsUpdate = true; }
     // cardumes
