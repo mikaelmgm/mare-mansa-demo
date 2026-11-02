@@ -1859,10 +1859,12 @@ cv.addEventListener('click', e => {
 });
 
 /* ================= visão 3D: diorama voxel do porto ================= */
+const ENABLE_3D = false;                           // 3D desativado por enquanto: troque para true para voltar
 const VIEW_KEY = 'mare-mansa-view', TOD_KEY = 'mare-mansa-tod';
 const V3 = { ready: false, loading: false, failed: false };
 let view = '2d', tod = 'auto';
 try { view = localStorage.getItem(VIEW_KEY) || '2d'; tod = localStorage.getItem(TOD_KEY) || 'auto'; } catch (e) {}
+if (!ENABLE_3D) { view = '2d'; document.querySelector('.view-tog').hidden = true; }
 const cv3 = $('cv3');
 // ícones em pixel: meio sol (automático), sol, lua
 const svgIco = d => `<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="${d}"/></svg>`;
